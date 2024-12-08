@@ -15,6 +15,7 @@
     cf: .long 0
     lgsec: .long 0
     k: .long 0
+    formata_poz: .asciz "((%d, %d), (%d, %d))\n"
 
 .text
 
@@ -145,7 +146,91 @@ f_add:
     ret
 
 f_get:
-    
+    pushl %esp
+    movl %esp, %ebp
+
+    pushl $des #citesc descriptorul
+    pushl $formatc_dig
+    call scanf
+    addl $8, %esp
+    movl des, %ebx
+
+    #pun 0-uri in coordonate in cazul in care nu e spatiu in memorie
+    movl $0, ci
+    movl $0, cf
+    movl $0, li
+    movl $0, lf
+
+    movl $0, i
+    et_parc_linii_get:
+
+        movl $0, j
+        et_parc_coloane_get:
+            #calculez pozitia din memorie in %eax ca fiind 1024xi+j
+            movl i, %eax
+            movl $0, %edx
+            movl $1024, %ecx
+            mull %ecx
+            addl j, %eax
+
+            cmpb %bl, (%edi, %eax, 1) #daca gasesc descriptorul cautat, sar la et respectiva si ii caut finalul
+            je et_get_gasit
+
+            addl $1, j
+            cmpl $1024, j
+            jne et_parc_coloane_get
+
+        addl $1, i
+        cmpl $1024, i
+        jne et_parc_linii_get
+
+    jmp et_afisare_get
+
+    et_get_gasit:
+        movl i, %ecx
+        movl %ecx, li
+        movl j, %ecx
+        movl %ecx, ci
+
+        subl $1, i #folosesc eticheta cauta final si pentru parcurgerea de linii, asa ca scad una inainte(nu stiu daca un fisier poate fi pe o singura linie) 
+        et_cauta_final:
+            addl $1, i
+
+            et_parcurgere_coloane_get:
+                #calculez pozitia din memorie in %eax ca fiind 1024xi+j
+                movl i, %eax
+                movl $0, %edx
+                movl $1024, %ecx
+                mull %ecx
+                addl j, %eax
+
+                cmpb %bl, (%edi, %eax, 1)
+                jne et_afisare_get
+
+                movl i, %ecx
+                movl %ecx, lf
+                movl j, %ecx
+                movl %ecx, cf 
+
+                addl $1, j
+                cmpl $1024, j
+                jne et_parcurgere_coloane_get
+
+            movl $0, j
+            cmpl $1023,i
+            jne et_cauta_final
+
+    et_afisare_get:
+        pushl cf
+        pushl lf
+        pushl ci
+        pushl li
+        pushl $formata_poz
+        call printf
+        addl $20, %esp
+
+    popl %esp
+    ret
 
 .global main
 
