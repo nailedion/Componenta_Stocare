@@ -4,7 +4,7 @@
     O: .long 0
     co: .long 0
     formatc_dig: .asciz "%d"
-    formata_add0: .asciz "%d: (0, 0)\n"
+    formata_add0: .asciz "(0, 0)\n" #formata_add0: .asciz "%d: (0, 0)\n"
     formata_add: .asciz "%d: (%d, %d)\n"
     formata_get: .asciz "(%d, %d)\n"
     afis: .asciz "%c %d"
@@ -138,10 +138,11 @@ et_add:
                 jne et_cauta_poz
                 #printf(formata_add0, des)
                 pushl %ecx
-                pushl des
+                #pushl des
                 pushl $formata_add0
                 call printf
-                addl $8, %esp
+                #addl $8, %esp
+                addl $4, %esp
                 popl %ecx
 
         et_gasit_poz:
@@ -291,6 +292,7 @@ et_delete:
         #if(des !=0)
         #printf("format",des , st, dr)
         cmpl $0, %ebx
+        popl %ecx #scot contorizatorul din parc op ####
         je et_parc_op
 
         pushl %ecx
@@ -373,6 +375,9 @@ et_delete:
 et_defragmentation:
     pushl %ecx #pun ecx-ul din parcurgerea co
     movl $0, %edx #contorizez in %edx cate pozitii am mutat in memorie ca sa stiu cate sa scad la sfarsit
+
+    cmpl $-1, lgmem
+    je et_termina_defragmentation
 
     movl lgmem, %ecx
     movl %ecx, lgsec #salvez lgmem in lgsec

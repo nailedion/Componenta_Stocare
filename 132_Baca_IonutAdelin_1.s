@@ -489,9 +489,9 @@ f_defragmentation:
     movl $-1, dim #dimensiunea unei secvente a unui descriptor(-1 pt ca o sa mai treca odata prin poz 0)
 
     movl $0, i
+    movl $0, j
     et_parc_linii_defragmentation:
         
-        movl $0, j
         et_parc_coloane_defragmentation:
             #calculez pozitia din memorie in %eax ca fiind 1024xi+j
             movl i, %eax
@@ -508,71 +508,148 @@ f_defragmentation:
             #aici am dat de alt descriptor si ii cautam o posibila pozitionare mai buna a secventei noastre pana in pozitia %eax, pe care o mut in k
             movl %eax, k
 
-            movl $0, li
+            movl %eax, %ecx
+            subl $1, %ecx
+
+            cmpb $0, (%edi, %ecx, 1)
+            je et_urm_descriptor
+
+            movl i, %ecx #pornesc cautarea de la (li, ci)=(i,j-1), unde (i, j) e descriptor diferit
+            movl %ecx, li
+
+            movl j, %ecx
+            movl %ecx, ci
+            subl $1, ci
+
+            cmpl $-1, ci #verific cazul in care (i, j) e la inceput de linie si tb sa sar pe linia de sus
+            jne et_cauta_linie
+
+            movl $1023, ci #cazul de pe prima coloana
+
+            cmpl $0, li
+            je et_cauta_linie #daca e pe prima linie trece peste
+
+            subl $1, li
 
             et_cauta_linie:
-                movl $0, lgsec
+                movl $0, lgsec #eu adun indiferent de ce dau pana la ultimul descriptor diferit de 0/descriptorul al carui spatiu il caut, deci scad 1 de acum pentru contorizarea descriptorului diferit de cele 2 opt
 
-                movl $0, ci
                 et_cauta_coloana:
-                    #calculez pozitia din memorie in %eax ca fiind 1024xi+j
+                    #calculez pozitia din memorie in %eax ca fiind 1024xli+ci
                     movl li, %eax
                     movl $0, %edx
                     movl $1024, %ecx
                     mull %ecx
                     addl ci, %eax
 
-                    #daca e liber pe pozitia asta (0 sau chiar descriptorul nostru), o contorizez, altfel trece pe 0 lgsec
+                    addl $1, lgsec
+
+                    #daca e liber pe pozitia asta (0 sau chiar descriptorul nostru), o contorizez + un descriptor diferit de cele 2 opt
                     cmpb $0, (%edi, %eax, 1)
-                    je et_e0
+                    je et_mai_cauta_spatii
 
                     cmpb %bl, (%edi, %eax, 1)
-                    je et_e0
+                    je et_mai_cauta_spatii
 
-                    movl $-1, lgsec #daca trece pe -1, oricum adun dupa pana la 0
+                    #(li, ci) elementul diferit    
 
-                    et_e0:
-                        addl $1, lgsec
+                    movl ci, %ecx
+                    movl %ecx, cf
+                    addl $1, cf
 
-                    movl dim, %ecx
-                    cmpl %ecx, lgsec
-                    jne et_mai_cauta_spatii
+                    movl li, %ecx
+                    movl %ecx, lf
 
-                    #daca au aceeasi dimensiune, pot sa interschimb elementele de pe pozitii, cu conditia sa fi gasit ceva pana in k
-                    cmpl %eax, k #k<=%eax
-                    jbe et_urm_descriptor #daca k<=%eax, nu a gasit spatiu
+                    addl dim, %eax #pozitia ultimului elem din sirul nou
+     
+                    movl %eax, %ecx
 
-                    #aici a gasit spatiu si incepe sa mute
-                    movl k, %ecx #pun pozitia de sfarsit a secventei in %ecx
-                    subl dim, %ecx
-
+                    movl li, %eax
                     addl $1, %eax
-                    subl dim, %eax
+                    movl $0, %edx
+                    movl $1024, %esi
+                    mull %esi
 
-                    cmpb $0, (%edi, %eax, 1)
-                    jne et_urm_descriptor
+                    cmpl %ecx, %eax #(li+1)*1024>%ecx
+                    jg et_aceeasiLinie #daca secventa trece de limita 1023, sare pe urmatoarea linie(nu are cum sa depaseasca pozitia initiala)
 
-                    et_interschimba:
-                        movb (%edi, %ecx, 1), %dl
-                        movb %dl, (%edi, %eax, 1)
-                        movb $0, (%edi, %ecx, 1)
+                    addl $1, lf
+                    movl $0, cf
 
-                        addl $1, %ecx
-                        addl $1, %eax
+                    et_aceeasiLinie:
 
-                        cmpl %ecx, k #k>%ecx
-                        jg et_interschimba
+                    movl i, %ecx
+                    movl %ecx, li
 
-                    jmp et_urm_descriptor #nu mai tb sa caute
+                    movl j, %ecx
+                    subl dim, %ecx #(j(pozitia elementului de dupa sir=capat drept+1)-dimensiune=poz init)
+                    movl %ecx, ci
 
+                    cmpl $0, ci #ci<0
+                    jge et_interschimba_defragmentation
+
+                    movl $1024, %ecx
+                    subl dim, %ecx
+                    movl %ecx, ci
+                    subl $1, li
+
+                    jmp et_interschimba_defragmentation
+                  
                     et_mai_cauta_spatii:
-                    addl $1, ci
-                    cmpl $1024, ci
+                    subl $1, ci
+                    cmpl $-1, ci
                     jne et_cauta_coloana
 
-                addl $1, li
-                cmpl $1024, li
+                cmpl $0, li
+                je et_pregatiri_interschimbare
+
+                movl $1023, ci
+
+                subl $1, li
+                cmpl $-1, li
                 jne et_cauta_linie
+
+            et_pregatiri_interschimbare:
+
+            movl $0, cf
+            movl $0, lf
+
+            movl i, %ecx
+            movl %ecx, li
+
+            movl j, %ecx
+            subl dim, %ecx
+            movl %ecx, ci
+
+            cmpl $0, ci #ci<0
+            jge et_interschimba_defragmentation
+
+            movl $0, ci
+
+            et_interschimba_defragmentation:
+
+                movl li, %eax
+                movl $0, %edx
+                movl $1024, %ecx
+                mull %ecx
+                addl ci, %eax
+
+                movb $0, (%edi, %eax, 1) #li/ci inceputul secventei
+
+                movl lf, %eax
+                movl $0, %edx
+                movl $1024, %ecx
+                mull %ecx
+                addl cf, %eax
+
+                movb %bl, (%edi, %eax, 1) #lf/cf urmatorul inceput al secventei
+
+                addl $1, cf
+                addl $1, ci
+
+                subl $1, dim
+                cmpl $0, dim
+                jne et_interschimba_defragmentation
 
             et_urm_descriptor:
             movl k, %eax
@@ -584,6 +661,8 @@ f_defragmentation:
             cmpl $1024, j
 
             jne et_parc_coloane_defragmentation
+
+        movl $0, j
 
         addl $1, i
         cmpl $1024, i
