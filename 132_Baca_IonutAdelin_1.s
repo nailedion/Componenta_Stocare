@@ -16,6 +16,10 @@
     lgsec: .long 0
     k: .long 0
     formata_poz: .asciz "((%d, %d), (%d, %d))\n"
+    format_str: .asciz "%s"
+    directory: .space 256
+    file: .space 256
+    dir: .space 4
 
 .text
 
@@ -23,7 +27,7 @@ f_add:
     #ret
     #%esp
     #-4(%esp)
-    pushl %esp
+    pushl %ebp
     movl %esp, %ebp
     
     pushl $N #citesc nr de adaugari
@@ -142,11 +146,11 @@ f_add:
     jne et_parcurgere_adaugari  #daca ajunge la N trece de repetare
 
     sf_f_add:
-    popl %esp
+    popl %ebp
     ret
 
 f_get:
-    pushl %esp
+    pushl %ebp
     movl %esp, %ebp
 
     pushl $des #citesc descriptorul
@@ -229,11 +233,11 @@ f_get:
         call printf
         addl $20, %esp
 
-    popl %esp
+    popl %ebp
     ret
 
 f_delete:
-    pushl %esp
+    pushl %ebp
     movl %esp, %ebp
 
     pushl $des #citesc descriptorul
@@ -477,11 +481,11 @@ f_delete:
     addl $24, %esp
 
     et_sfarsit_delete:
-    popl %esp
+    popl %ebp
     ret
 
 f_defragmentation:
-    pushl %esp
+    pushl %ebp
     movl %esp, %ebp
 
     movl $0, %ebx
@@ -794,9 +798,26 @@ f_defragmentation:
     addl $24, %esp
 
     et_sfarsit_defragmentation:
-    popl %esp
+    popl %ebp
     ret
 
+f_comprehension:
+    pushl %ebp
+    movl %esp, %ebp
+
+    #scanf("%s", directory); citesc path-ul spre folder
+    pushl $directory
+    pushl $format_str
+    call scanf
+    addl $8, %esp
+
+    #dir = opendir(directory);
+    pushl $directory
+    call opendir
+    addl $4, %esp
+et:
+    popl %ebp
+    ret
 
 .global main
 
@@ -832,6 +853,8 @@ et_parc_op:
     je et_delete
     cmpl $4, co
     je et_defragmentation
+    cmpl $5, co
+    je et_comprehension
 
 et_add:
     pushl %ecx #pun pe stiva %ecx-ul ca sa nu l pierd la apelarea fct f_add
@@ -864,6 +887,15 @@ et_defragmentation:
     pushl %ecx #pun pe stiva %ecx-ul ca sa nu l pierd la apelarea fct f_add
 
     call f_defragmentation
+
+    popl %ecx #scot %ecx-ul dupa fct
+
+    jmp et_parc_op
+
+et_comprehension:
+    pushl %ecx #pun pe stiva %ecx-ul ca sa nu l pierd la apelarea fct f_add
+
+    call f_comprehension
 
     popl %ecx #scot %ecx-ul dupa fct
 
